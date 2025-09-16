@@ -2,8 +2,7 @@
 
 A ComfyUI integration for FireRedTTS2, providing high-quality dialogue and monologue speech synthesis capabilities.
 
-<img width="1326" height="599" alt="image" src="https://github.com/user-attachments/assets/2e523d97-5579-4220-a854-9e0185ad0617" />
-
+<img width="1308" height="872" alt="image" src="https://github.com/user-attachments/assets/647279e1-7916-46ec-8cd2-41b5582084d7" />
 
 ## Features
 
@@ -217,4 +216,5 @@ If you encounter issues, please check:
 4. System resources are sufficient
 
 For more technical details, refer to the project source code and FireRedTTS2 official documentation.
+
 
