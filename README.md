@@ -1,6 +1,8 @@
 # ComfyUI-FireRedTTS
 
-A ComfyUI integration for FireRedTTS2, providing high-quality dialogue and monologue speech synthesis capabilities.
+A ComfyUI integration for FireRedTTS‑2, a real-time multi-speaker TTS system enabling high-quality, emotionally expressive dialogue and monologue synthesis. Leveraging a streaming architecture and context-aware prosody modeling, it supports natural speaker turns and stable long-form generation, ideal for interactive chat and podcast applications.
+
+![ComfyUI-FireRedTTS](https://github.com/user-attachments/assets/81978360-47aa-4f09-861d-edf13ec96187)
 
 ## Features
 
