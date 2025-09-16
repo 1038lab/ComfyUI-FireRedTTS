@@ -1,4 +1,4 @@
-# ComfyUI-FireRedTTS2
+# ComfyUI-FireRedTTS
 
 A ComfyUI integration for FireRedTTS2, providing high-quality dialogue and monologue speech synthesis capabilities.
 
@@ -214,5 +214,6 @@ If you encounter issues, please check:
 2. Models downloaded correctly
 3. Input format meets requirements
 4. System resources are sufficient
+
 
 For more technical details, refer to the project source code and FireRedTTS2 official documentation.
