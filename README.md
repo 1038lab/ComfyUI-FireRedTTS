@@ -2,8 +2,6 @@
 
 A ComfyUI integration for FireRedTTS2, providing high-quality dialogue and monologue speech synthesis capabilities.
 
-![ComfyUI-FireRedTTS](https://github.com/user-attachments/assets/81978360-47aa-4f09-861d-edf13ec96187)
-
 ## Features
 
 - **Dialogue Generation**: Multi-speaker conversation audio generation
@@ -40,7 +38,7 @@ pip install -r requirements.txt
 ### Model Download
 
 On first use, the system will automatically download the FireRedTTS2 model from Hugging Face:
-- Model source: `FireRedTeam/FireRedTTS2`
+- Model source: [FireRedTeam/FireRedTTS2](https://huggingface.co/FireRedTeam/FireRedTTS2)
 - Storage location: `ComfyUI\models\TTS\FireRedTTS2`
 - Download size: ~2GB
 
@@ -216,6 +214,3 @@ If you encounter issues, please check:
 4. System resources are sufficient
 
 For more technical details, refer to the project source code and FireRedTTS2 official documentation.
-
-
-
