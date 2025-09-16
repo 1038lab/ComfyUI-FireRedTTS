@@ -1,0 +1,15 @@
+# Core PyTorch dependencies
+torch>=2.0.0
+torchaudio>=2.0.0
+
+# FireRedTTS2 model dependencies
+torchtune>=0.1.0
+transformers>=4.30.0
+huggingface_hub>=0.16.0
+
+# Audio processing and utilities
+einops>=0.6.0
+tqdm>=4.64.0
+
+# Additional dependencies for model functionality
+numpy>=1.21.0
