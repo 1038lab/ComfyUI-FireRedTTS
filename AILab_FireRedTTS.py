@@ -1,4 +1,4 @@
-# ComfyUI-FireRedTTS V0.8.0
+# ComfyUI-FireRedTTS V0.8.1
 # A ComfyUI Custom node integration for FireRedTTS2, providing high-quality dialogue and monologue speech synthesis capabilities.
 #
 # Models License Notice:
@@ -28,9 +28,7 @@ from fireredtts2.fireredtts2 import FireRedTTS2
 now_dir = osp.dirname(osp.abspath(__file__))
 tmp_dir = osp.join(now_dir, "tmp")
 
-# Device detection
 def get_device():
-    """Auto-detect the best available device"""
     if torch.cuda.is_available():
         device_name = torch.cuda.get_device_name(0)
         print(f"[INFO] CUDA available - Using GPU: {device_name}")
@@ -42,14 +40,17 @@ def get_device():
         print("[INFO] Using CPU (no GPU acceleration available)")
         return "cpu"
 
-# Global variables for model management
 device = get_device()
 dialogue_model = None
 monologue_model = None
 model_path = None
 
+def clear_gpu_memory():
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.synchronize()
+
 def check_gpu_memory():
-    """Check GPU memory status"""
     if device == "cuda" and torch.cuda.is_available():
         total_memory = torch.cuda.get_device_properties(0).total_memory / 1024**3
         allocated_memory = torch.cuda.memory_allocated(0) / 1024**3
@@ -58,26 +59,50 @@ def check_gpu_memory():
         return total_memory, allocated_memory, cached_memory
     return None, None, None
 
+def safe_generate_with_fallback(model, generate_func, *args, **kwargs):
+    try:
+        clear_gpu_memory()
+        return generate_func(*args, **kwargs)
+    except RuntimeError as e:
+        if "CUDA" in str(e) or "out of memory" in str(e).lower():
+            print(f"[WARNING] GPU memory error: {str(e)}")
+            print("[INFO] Attempting to clear GPU cache and retry...")
+            clear_gpu_memory()
+            try:
+                return generate_func(*args, **kwargs)
+            except RuntimeError as e2:
+                print(f"[WARNING] GPU retry failed: {str(e2)}")
+                print("[INFO] Falling back to CPU generation...")
+                global dialogue_model, monologue_model
+                if hasattr(model, 'device'):
+                    original_device = model.device
+                    model.to('cpu')
+                    try:
+                        result = generate_func(*args, **kwargs)
+                        model.to(original_device)
+                        return result
+                    except Exception as e3:
+                        print(f"[ERROR] CPU fallback also failed: {str(e3)}")
+                        raise e3
+                else:
+                    raise e2
+        else:
+            raise e
+
 def get_model_path():
-    """Get or download the FireRedTTS2 model"""
     global model_path
     
     if model_path is None:
-        # Use ComfyUI models/TTS directory
         models_dir = folder_paths.models_dir
         tts_dir = os.path.join(models_dir, "TTS")
         fireredtts2_dir = os.path.join(tts_dir, "FireRedTTS2")
         
-        # Check if model exists locally
         if not os.path.exists(fireredtts2_dir) or not os.path.exists(os.path.join(fireredtts2_dir, "config_llm.json")):
             print("[INFO] Downloading FireRedTTS2 model...")
             try:
-                # Create TTS directory if it doesn't exist
                 os.makedirs(tts_dir, exist_ok=True)
-                # Create FireRedTTS2 directory
                 os.makedirs(fireredtts2_dir, exist_ok=True)
                 
-                # Download model from HuggingFace
                 snapshot_download(
                     repo_id="FireRedTeam/FireRedTTS2",
                     local_dir=fireredtts2_dir,
@@ -95,7 +120,6 @@ def get_model_path():
     return model_path
 
 def get_dialogue_model():
-    """Get or create the dialogue model instance"""
     global dialogue_model
     
     if dialogue_model is None:
@@ -119,7 +143,6 @@ def get_dialogue_model():
     return dialogue_model
 
 def get_monologue_model():
-    """Get or create the monologue model instance"""
     global monologue_model
     
     if monologue_model is None:
@@ -139,41 +162,25 @@ def get_monologue_model():
     return monologue_model
 
 def parse_multiline_string(text: str) -> List[str]:
-    """Parse multiline string into a list, filtering out empty lines"""
     if not text or not text.strip():
         return []
     
     lines = [line.strip() for line in text.strip().split('\n')]
     return [line for line in lines if line]
 
-
-
 def to_comfyui_audio(tensor: torch.Tensor, sample_rate: int = 24000):
-    """Convert audio tensor to ComfyUI audio format"""
-    print(f"[DEBUG] Input tensor shape: {tensor.shape}, device: {tensor.device}")
-    
-    # Ensure tensor is on CPU
     if tensor.is_cuda:
         tensor = tensor.cpu()
     
-    # FireRedTTS2 outputs (1, samples) - need to add batch dimension
-    # ComfyUI expects (batch, channels, samples)
     if tensor.dim() == 1:
-        tensor = tensor.unsqueeze(0).unsqueeze(0)  # (samples,) -> (1, 1, samples)
+        tensor = tensor.unsqueeze(0).unsqueeze(0)
     elif tensor.dim() == 2:
-        tensor = tensor.unsqueeze(0)  # (channels, samples) -> (1, channels, samples)
+        tensor = tensor.unsqueeze(0)
     
-    print(f"[DEBUG] Output tensor shape: {tensor.shape}")
     result = {"waveform": tensor, "sample_rate": sample_rate}
-    print(f"[DEBUG] Returning ComfyUI audio format")
     return result
 
-# Device information available in global variable 'device'
-
-# ComfyUI Node Classes
-
 def parse_dialogue_text(text_list_str: str) -> List[str]:
-    """Parse dialogue text with speaker labels, auto-format if needed"""
     if not text_list_str or not text_list_str.strip():
         return []
     
@@ -181,11 +188,9 @@ def parse_dialogue_text(text_list_str: str) -> List[str]:
     parsed_lines = []
     
     for i, line in enumerate(lines):
-        # Check if line has speaker labels
         has_speaker_label = any(f"[S{j}]" in line for j in range(1, 3))
         
         if not has_speaker_label:
-            # Auto-assign speaker labels alternating between S1 and S2
             speaker_num = (i % 2) + 1
             formatted_line = f"[S{speaker_num}]{line}"
             print(f"[INFO] Auto-formatted line {i+1}: Added [S{speaker_num}] to '{line[:50]}...'")
@@ -195,16 +200,7 @@ def parse_dialogue_text(text_list_str: str) -> List[str]:
     
     return parsed_lines
 
-def parse_prompt_lists(prompt_str: str) -> List[str]:
-    """Parse multiline prompt string into list, filtering empty lines"""
-    if not prompt_str or not prompt_str.strip():
-        return []
-    
-    lines = parse_multiline_string(prompt_str)
-    return lines
-
 class FireRedTTS2_Dialogue:
-    """Generate multi-speaker dialogue audio from text (supports 2 speakers: [S1], [S2])"""
     
     @classmethod
     def INPUT_TYPES(cls):
@@ -233,16 +229,13 @@ class FireRedTTS2_Dialogue:
         try:
             model = get_dialogue_model()
             
-            # Parse dialogue text with speaker labels
             text_lines = parse_dialogue_text(text_list)
             if not text_lines:
                 raise ValueError("Dialogue text cannot be empty")
             
-            # Process speaker prompts
             prompt_wavs = []
             prompt_texts = []
             
-            # Check each speaker's prompt
             speakers = [
                 ("[S1]", S1, S1_text),
                 ("[S2]", S2, S2_text),
@@ -250,14 +243,12 @@ class FireRedTTS2_Dialogue:
             
             for speaker_label, prompt_wav, prompt_text in speakers:
                 if prompt_wav is not None and prompt_text.strip():
-                    # Convert AUDIO format to temporary file
                     with tempfile.NamedTemporaryFile(delete=False, suffix=".wav", dir=tmp_dir) as f:
                         waveform = prompt_wav["waveform"].squeeze(0)
                         torchaudio.save(f.name, waveform, prompt_wav["sample_rate"])
                         prompt_wavs.append(f.name)
                         prompt_texts.append(f"{speaker_label}{prompt_text.strip()}")
             
-            # Use prompts if any are provided
             final_prompt_wavs = prompt_wavs if prompt_wavs else None
             final_prompt_texts = prompt_texts if prompt_texts else None
             
@@ -266,11 +257,12 @@ class FireRedTTS2_Dialogue:
             else:
                 print("[INFO] No prompts provided, using random voices")
             
-            # Generate dialogue
             print(f"[INFO] Generating dialogue with {len(text_lines)} text segments")
             print(f"[INFO] Using device: {device}")
-            print(f"[INFO] Text segments: {text_lines}")
-            audio_tensor = model.generate_dialogue(
+            
+            audio_tensor = safe_generate_with_fallback(
+                model, 
+                model.generate_dialogue,
                 text_list=text_lines,
                 prompt_wav_list=final_prompt_wavs,
                 prompt_text_list=final_prompt_texts,
@@ -278,10 +270,8 @@ class FireRedTTS2_Dialogue:
                 topk=topk
             )
             
-            # Convert to ComfyUI format
             res_audio = to_comfyui_audio(audio_tensor, 24000)
             
-            # Clean up temp directory
             if os.path.exists(tmp_dir):
                 shutil.rmtree(tmp_dir)
             
@@ -292,15 +282,12 @@ class FireRedTTS2_Dialogue:
             print(f"[ERROR] FireRedTTS2 Dialogue generation failed: {str(e)}")
             import traceback
             print(f"[ERROR] Full traceback: {traceback.format_exc()}")
-            # Clean up on error
             if os.path.exists(tmp_dir):
                 shutil.rmtree(tmp_dir)
-            # Return empty audio on error
             empty_audio = torch.zeros(1, 1, 1000)
             return (to_comfyui_audio(empty_audio.squeeze(), 24000),)
 
 class FireRedTTS2MonologueNode:
-    """Generate single speaker monologue audio from text with voice cloning and random voice support"""
     
     @classmethod
     def INPUT_TYPES(cls):
@@ -322,7 +309,6 @@ class FireRedTTS2MonologueNode:
     CATEGORY = "🧪AILab/🔊TTS/FireRedTTS"
     
     def generate_monologue(self, text, temperature, topk, prompt_wav=None, prompt_text=""):
-        """Generate monologue audio with voice cloning and random voice support"""
         os.makedirs(tmp_dir, exist_ok=True)
         try:
             model = get_monologue_model()
@@ -330,13 +316,10 @@ class FireRedTTS2MonologueNode:
             if not text.strip():
                 raise ValueError("Text cannot be empty")
             
-            # Prepare prompt parameters for voice cloning
             prompt_wav_path = None
             prompt_text_content = None
             
-            # Voice cloning: both prompt_wav and prompt_text must be provided
             if prompt_wav is not None and prompt_text.strip():
-                # Convert AUDIO format to temporary file
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".wav", dir=tmp_dir) as f:
                     waveform = prompt_wav["waveform"].squeeze(0)
                     torchaudio.save(f.name, waveform, prompt_wav["sample_rate"])
@@ -344,13 +327,14 @@ class FireRedTTS2MonologueNode:
                     prompt_text_content = prompt_text.strip()
                     print(f"[INFO] Using voice cloning with reference audio and text")
             else:
-                # Random voice mode: no prompts provided
                 print(f"[INFO] Using random voice generation (no prompts provided)")
             
-            # Generate monologue audio
             print(f"[INFO] Generating monologue for text: {text[:50]}...")
             print(f"[INFO] Parameters - temperature: {temperature}, topk: {topk}")
-            audio_tensor = model.generate_monologue(
+            
+            audio_tensor = safe_generate_with_fallback(
+                model,
+                model.generate_monologue,
                 text=text,
                 prompt_wav=prompt_wav_path,
                 prompt_text=prompt_text_content,
@@ -359,10 +343,8 @@ class FireRedTTS2MonologueNode:
             )
             print(f"[INFO] Generated audio tensor shape: {audio_tensor.shape}")
             
-            # Convert to ComfyUI audio format
             res_audio = to_comfyui_audio(audio_tensor, 24000)
             
-            # Clean up temp directory
             if os.path.exists(tmp_dir):
                 shutil.rmtree(tmp_dir)
             
@@ -371,13 +353,11 @@ class FireRedTTS2MonologueNode:
             
         except Exception as e:
             print(f"[ERROR] FireRedTTS2 Monologue generation failed: {str(e)}")
-            # Clean up on error
             if os.path.exists(tmp_dir):
                 shutil.rmtree(tmp_dir)
-            # Return empty audio on error
             empty_audio = torch.zeros(1, 1, 1000)
             return (to_comfyui_audio(empty_audio.squeeze(), 24000),)
-# Node mappings for ComfyUI
+
 NODE_CLASS_MAPPINGS = {
     "FireRedTTS2_Dialogue": FireRedTTS2_Dialogue,
     "FireRedTTS2MonologueNode": FireRedTTS2MonologueNode,
