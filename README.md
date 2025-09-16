@@ -1,10 +1,10 @@
-# ComfyUI-FireRedTTS2
+# ComfyUI-FireRedTTS
 
 A ComfyUI integration for FireRedTTS2, providing high-quality dialogue and monologue speech synthesis capabilities.
 
 ## Features
 
-- **Dialogue Generation**: Two-speaker conversation audio generation
+- **Dialogue Generation**: Multi-speaker conversation audio generation
 - **Monologue Generation**: Single-speaker narrative audio generation  
 - **Voice Cloning**: Zero-shot voice cloning functionality
 - **Multi-language Support**: Chinese, English, Japanese, Korean, French, German, Russian
@@ -48,7 +48,7 @@ A progress bar will show during download. Once complete, the model is cached for
 
 ### FireRedTTS2 Dialogue Node
 
-Generates two-speaker dialogue audio.
+Generates Multi-speaker dialogue audio.
 
 **Inputs:**
 - `text_list` (STRING): Dialogue text with speaker tags ([S1], [S2])
