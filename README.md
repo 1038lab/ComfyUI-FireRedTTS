@@ -1,10 +1,10 @@
-# ComfyUI-FireRedTTS
+# ComfyUI-FireRedTTS2
 
 A ComfyUI integration for FireRedTTS2, providing high-quality dialogue and monologue speech synthesis capabilities.
 
 ## Features
 
-- **Dialogue Generation**: Multi-speaker conversation audio generation
+- **Dialogue Generation**: Two-speaker conversation audio generation
 - **Monologue Generation**: Single-speaker narrative audio generation  
 - **Voice Cloning**: Zero-shot voice cloning functionality
 - **Multi-language Support**: Chinese, English, Japanese, Korean, French, German, Russian
@@ -48,14 +48,16 @@ A progress bar will show during download. Once complete, the model is cached for
 
 ### FireRedTTS2 Dialogue Node
 
-Generates multi-speaker dialogue audio.
+Generates two-speaker dialogue audio.
 
 **Inputs:**
-- `text_list` (STRING): Dialogue text with speaker tags
+- `text_list` (STRING): Dialogue text with speaker tags ([S1], [S2])
 - `temperature` (FLOAT): Controls generation randomness (0.1-2.0, default: 0.9)
 - `topk` (INT): Controls sampling range (1-100, default: 30)
-- `prompt_wav_list` (STRING, optional): Reference audio file paths (multi-line)
-- `prompt_text_list` (STRING, optional): Reference text list (multi-line)
+- `S1` (AUDIO, optional): Reference audio for Speaker 1
+- `S1_text` (STRING, optional): Reference text for Speaker 1
+- `S2` (AUDIO, optional): Reference audio for Speaker 2
+- `S2_text` (STRING, optional): Reference text for Speaker 2
 
 **Outputs:**
 - `audio` (AUDIO): Generated dialogue audio
@@ -88,23 +90,19 @@ Use square brackets to mark different speakers in dialogue text:
 
 **Supported speaker tags:**
 - `[S1]` - Speaker 1
-- `[S2]` - Speaker 2  
-- `[S3]` - Speaker 3
-- `[S4]` - Speaker 4
+- `[S2]` - Speaker 2
 
-### Reference Audio Format
+### Voice Cloning Setup
 
-**Reference audio list** (one file path per line):
-```
-/path/to/speaker1_sample.wav
-/path/to/speaker2_sample.wav
-```
+For voice cloning, provide both audio and text for each speaker:
 
-**Reference text list** (one line per speaker):
-```
-[S1]This is reference text for speaker 1
-[S2]This is reference text for speaker 2
-```
+**Speaker 1 (S1):**
+- Connect reference audio to `S1` input
+- Enter reference text in `S1_text` field
+
+**Speaker 2 (S2):**
+- Connect reference audio to `S2` input  
+- Enter reference text in `S2_text` field
 
 ## Examples
 
@@ -120,16 +118,16 @@ Use square brackets to mark different speakers in dialogue text:
 
 ### Voice Cloning Dialogue
 
-1. Prepare reference audio files
-2. Input audio paths in `prompt_wav_list`:
+1. Prepare reference audio files for each speaker
+2. Connect Speaker 1 reference audio to `S1` input
+3. Enter Speaker 1 reference text in `S1_text`:
    ```
-   /path/to/voice1.wav
-   /path/to/voice2.wav
+   This is a voice sample for speaker one
    ```
-3. Input corresponding text in `prompt_text_list`:
+4. Connect Speaker 2 reference audio to `S2` input
+5. Enter Speaker 2 reference text in `S2_text`:
    ```
-   [S1]This is a voice sample for speaker one
-   [S2]This is a voice sample for speaker two
+   This is a voice sample for speaker two
    ```
 
 ### Monologue Generation
@@ -214,6 +212,5 @@ If you encounter issues, please check:
 2. Models downloaded correctly
 3. Input format meets requirements
 4. System resources are sufficient
-
 
 For more technical details, refer to the project source code and FireRedTTS2 official documentation.
